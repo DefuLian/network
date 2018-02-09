@@ -1,7 +1,0 @@
-function knn_search_exp(X,Y)
-if isa(X, 'uint8') && isa(Y,'uint8')
-    knnsearch(X, Y, 'Distance', @(ZI, ZJ) hammingDist(ZI, ZJ).');
-else
-    knnsearch(X, Y, 'Distance', @(ZI, ZJ) ZJ *
-end
-end

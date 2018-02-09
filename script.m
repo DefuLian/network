@@ -297,44 +297,47 @@ dlmwrite(file_name, [(0:n-1)', B_IMH], 'delimiter', ' ', '-append')
 
 
 %%
+rng(1000)
+for i=5:9
 data_dir_all = '/home/dlian/Data/data/network/';
-dataset = 'Wiki';
+dataset = 'Flickr';
 load(sprintf('%s/%s-dataset/data/%s.mat', data_dir_all, dataset, dataset))
-dim = 128;
 n = length(network);
-rng(10)
 [J,I,K]=find(network.');
 ind=I<J;
 asys_network=sparse(I(ind),J(ind),K(ind),n,n);
 [asys_train, asys_test]=split_matrix(asys_network, 'un', 0.9);
 train = asys_train + asys_train.';
 test = asys_test + asys_test.';
-save(sprintf('%s/%s-dataset/data/node_rec/%s.mat', data_dir_all, dataset, dataset), 'train', 'test')
+save(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/%s.mat', data_dir_all, dataset,i, dataset), 'train', 'test')
 
 [J,I,K]=find(train.');
 ind=(I<=J);
 data = [I,J];
 data_uniq = data(ind,:);
-dlmwrite(sprintf('%s/%s-dataset/data/node_rec/edges.csv', data_dir_all, dataset), data_uniq, 'delimiter',',');
+dlmwrite(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/edges.csv', data_dir_all, dataset,i), ...
+    data_uniq, 'delimiter',',');
+end
+%%
+
 %%
 datasets={'BlogCatalog','PPI','Wiki','Flickr'};
 Ts = [10,10,1,1];
-i=4;
+i=3;
+for t=1:9
 data_dir_all = '/home/dlian/Data/data/network/';
 dataset = datasets{i};
-load(sprintf('%s/%s-dataset/data/node_rec/%s.mat', data_dir_all, dataset, dataset))
+load(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/%s.mat', data_dir_all, dataset, t, dataset))
 network=train;
 T = Ts(i);
-b = 1;
 dim = 128;
-n = length(network);
 
 if T==1
-    net = transform_network(network, T, b);
+    net = transform_network(network, T, 1);
     [U, S] = svds(net, dim);
     V = diag(1./diag(S)) * U.' * net;
 else
-    load(sprintf('%s/%s-dataset/data/node_rec/netmf.mat', data_dir_all, dataset))
+    load(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/netmf.mat', data_dir_all, dataset, t))
     S = embedding.'*embedding;
     U = embedding*diag(1./sqrt(diag(S)));
     V = diag(1./diag(S)) * U.' * net;
@@ -391,17 +394,18 @@ W_IMH = compactbit(B_IMH);
 B_IMH = B_IMH*2-1;
 
 [min(B_AGH_1(:)),min(B_AGH_2(:)),min(B_IMH(:)),min(B_itq(:)),min(B_itq_svd(:)),min(B_svd(:)),min(B_sh(:))]
-save(sprintf('%s/%s-dataset/data/node_rec/hash_code.mat', data_dir_all, dataset), ...
+save(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/hash_code.mat', data_dir_all, dataset,t), ...
     'W_AGH_1','W_AGH_2','W_IMH','W_itq','W_itq_svd','W_svd','W_sh',...
     'B_AGH_1','B_AGH_2','B_IMH','B_itq','B_itq_svd','B_svd','B_sh');
-
+end
 %% node recommendation
 datasets={'BlogCatalog','PPI','Wiki','Flickr'};
 i=4;
 dataset = datasets{i};
-data_dir_all = '/home/dlian/data/network/';
-load(sprintf('%s/%s-dataset/data/node_rec/hash_code.mat', data_dir_all, dataset))
-load(sprintf('%s/%s-dataset/data/node_rec/%s.mat', data_dir_all, dataset, dataset))
+data_dir_all = '/home/dlian/Data/data/network/';
+for t=1:9
+load(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/hash_code.mat', data_dir_all, dataset, t))
+load(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/%s.mat', data_dir_all, dataset, t, dataset))
 n = size(train,1);
 dim=128;
 P=B_itq;
@@ -425,15 +429,15 @@ result_agh_2 = evaluate_item(train, test, P, Q, -1, 200);
 P=B_IMH;
 Q=B_IMH;
 result_imh = evaluate_item(train, test, P, Q, -1, 200);
-load(sprintf('%s/%s-dataset/data/node_rec/netmf_embed.mat', data_dir_all, dataset))
+load(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/netmf_embed.mat', data_dir_all, dataset, t))
 P = emb_netmf_o;
 Q = emb_netmf_o;
 result_netmf = evaluate_item(train, test, P, Q, -1, 200);
-emb_deepwalk=load_embed(sprintf('%s/%s-dataset/data/node_rec/deepwalk_embed.txt', data_dir_all, dataset));
+emb_deepwalk=load_embed(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/deepwalk_embed.txt', data_dir_all, dataset, t));
 P = emb_deepwalk;
 Q = emb_deepwalk;
 result_deepwalk = evaluate_item(train, test, P, Q, -1, 200);
-emb_line=load_embed(sprintf('%s/%s-dataset/data/node_rec/line_embed.txt', data_dir_all, dataset));
+emb_line=load_embed(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/line_embed.txt', data_dir_all, dataset, t));
 P = emb_line;
 Q = emb_line;
 result_line = evaluate_item(train, test, P, Q, -1, 200);
@@ -445,12 +449,13 @@ mpr = cell2mat({result.mpr}');
 
 final = full([ndcg, auc, mpr]);
 
-dlmwrite(sprintf('%s/%s-dataset/data/node_rec/nr_result_%s.txt', data_dir_all, dataset, dataset), final,'precision','%.4f');
-
+dlmwrite(sprintf('%s/%s-dataset/data/node_rec/node_rec%d/nr_result_%s.txt', data_dir_all, dataset, t, dataset), ...
+    final,'precision','%.4f');
+end
 %% testing multi-class classification by varying ratio of subspace learning
 datasets={'BlogCatalog','PPI','Wiki','Flickr'};
 Ts = [10,10,1,1];
-i=4;
+i=3;
 data_dir_all = '/home/dlian/Data/data/network/';
 dataset = datasets{i};
 load(sprintf('%s/%s-dataset/data/%s.mat', data_dir_all, dataset, dataset))
@@ -476,7 +481,7 @@ num = 10;
 timing = zeros(num,1);
 data_dir = sprintf('%s/%s-dataset/data/mc_ratio', data_dir_all, dataset);
 for i=1:num
-    tic;B_itq_svd = dne_ao_itq_subspace(net, B_svd, 'ratio',i*0.1);timing(i)=toc;
+    tic;B_itq_svd = dne_ao_itq_subspace(net, B_svd, 'ratio',(i-1e-3)*0.1);timing(i)=toc;
     B_itq_svd = (B_itq_svd>0)*2-1;
     file_name = sprintf('%s/embedding_%s_%d_fixiter.txt', data_dir, 'bitq_svd', i);
     fileid = fopen(file_name, 'w');
@@ -488,7 +493,10 @@ dlmwrite(sprintf('%s/timing.txt', data_dir), timing);
 
 
 %% testing node recommendation by varying ration of subspace learning
-wdata_dir_all = '/home/dlian/Data/data/network/';
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+Ts = [10,10,1,1];
+i=3;
+data_dir_all = '/home/dlian/Data/data/network/';
 dataset = datasets{i};
 load(sprintf('%s/%s-dataset/data/node_rec/%s.mat', data_dir_all, dataset, dataset))
 network=train;
@@ -517,7 +525,7 @@ timing = zeros(num,1);
 %data_dir = sprintf('%s/%s-dataset/data/mc_ratio', data_dir_all, dataset);
 result=cell(num,1);
 for i=1:num
-    tic;B_itq_svd = dne_ao_itq_subspace(net, B_svd, 'ratio',i*0.1);timing(i)=toc;
+    tic;B_itq_svd = dne_ao_itq_subspace(net, B_svd, 'ratio',(i-1e-3)*0.1);timing(i)=toc;
     B_itq_svd = (B_itq_svd>0)*2-1;
     P=B_itq_svd;
     Q=B_itq_svd;
@@ -544,4 +552,92 @@ time = zeros(5,2);
 for k=1:5
     time(k,1)=knn_search_exp(W_itq_svd,W_itq_svd,k*200);
     time(k,1)=knn_search_exp(W_itq_svd,W_itq_svd,k*200);
+end
+
+%% decorrelation
+
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+Ts = [10,10,1,1];
+data_dir_all = '/home/dlian/Data/data/network/';
+for i=1:4
+dataset = datasets{i};
+load(sprintf('%s/%s-dataset/data/%s.mat', data_dir_all, dataset, dataset))
+T = Ts(i);
+dim = 128;
+n = length(network);
+
+if T==1
+    net = transform_network(network, T, 1);
+    [U, S] = svds(net, dim);
+    V = diag(1./diag(S)) * U.' * net;
+else
+    load(sprintf('%s/%s-dataset/data/netmf.mat', data_dir_all, dataset))
+    S = embedding.'*embedding;
+    U = embedding*diag(1./sqrt(diag(S)));
+    V = diag(1./diag(S)) * U.' * net;
+end
+
+
+B_svd = proj_hamming_balance(U * S);
+B_svd = (B_svd>0)*2-1;
+gamma = [0, 0.005*2.^(1:10)];
+data_dir = sprintf('%s/%s-dataset/data/decorrelation', data_dir_all, dataset);
+for g=length(gamma):length(gamma)
+    B_itq_svd = dne_ao_itq(net, B_svd, gamma(g));
+    B_itq_svd = (B_itq_svd>0)*2-1;
+    file_name = sprintf('%s/embedding_%d.txt', data_dir, g);
+    fileid = fopen(file_name, 'w');
+    fprintf(fileid, '%d %d\n', n, dim);
+    fclose(fileid);
+    dlmwrite(file_name, [(0:n-1)', B_itq_svd], 'delimiter', ' ', '-append')
+end
+end
+
+%%
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+Ts = [10,10,1,1];
+data_dir_all = '/home/dlian/Data/data/network/';
+for i=1:4
+dataset = datasets{i};
+load(sprintf('%s/%s-dataset/data/node_rec/%s.mat', data_dir_all, dataset, dataset))
+network=train;
+T = Ts(i);
+dim = 128;
+n = length(network);
+
+if T==1
+    net = transform_network(network, T, 1);
+    [U, S] = svds(net, dim);
+    V = diag(1./diag(S)) * U.' * net;
+else
+    load(sprintf('%s/%s-dataset/data/node_rec/netmf.mat', data_dir_all, dataset))
+    S = embedding.'*embedding;
+    U = embedding*diag(1./sqrt(diag(S)));
+    V = diag(1./diag(S)) * U.' * net;
+end
+
+
+B_svd = proj_hamming_balance(U * S);
+B_svd = (B_svd>0)*2-1;
+
+gamma = [0, 0.005*2.^(1:10)];
+num = length(gamma);
+%data_dir = sprintf('%s/%s-dataset/data/mc_ratio', data_dir_all, dataset);
+result=cell(num,1);
+for g=1:num
+    B_itq_svd = dne_ao_itq(net, B_svd, gamma(g));
+    B_itq_svd = (B_itq_svd>0)*2-1;
+    P=B_itq_svd;
+    Q=B_itq_svd;
+    result{g} = evaluate_item(train, test, P, Q, -1, 200);
+end
+result = cell2mat(result);
+ndcg = cell2mat({result.ndcg}');
+ndcg = ndcg(:,50);
+auc = cell2mat({result.auc}');
+mpr = cell2mat({result.mpr}');
+
+final = [full([ndcg, auc, mpr]),gamma.'];
+dlmwrite(sprintf('%s/%s-dataset/data/nr_decorrelation.txt', data_dir_all, dataset), final, 'precision','%.4f');
+
 end

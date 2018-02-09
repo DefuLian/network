@@ -1,13 +1,14 @@
-function [B, Q] = dne_ao_itq_subspace(net, B, varargin)
+function [B, Q, loss] = dne_ao_itq_subspace(net, B, varargin)
 [ratio, gamma] = process_options(varargin, 'ratio',1, 'gamma',0);
 M = net;
 Mt = net.';
-max_iter = 200;
+max_iter = 500;
 prev_loss = inf;
 n = length(net);
 k = size(B,2);
 mtb = Mt * B;
 d = k*ratio;
+loss=zeros(max_iter,1);
 for iter=1:max_iter
     Q=proj_stiefel_manifold(mtb);
     if gamma>0
@@ -15,15 +16,19 @@ for iter=1:max_iter
     else
         B_h = zeros(size(B));
     end
-    curr_loss = loss_mf(net, B, Q) + gamma/2*sum(sum((B-B_h).^2));
+    curr_loss = loss_mf(net, B, Q) + gamma/2*sum(sum((B-B_h).^2)); loss(iter)=curr_loss;
     fprintf('%3d iteration, loss %.3f\n', iter, curr_loss);
-    %if abs(prev_loss - curr_loss) < 1e-6
-    %    break
-    %end
+    if abs(prev_loss - curr_loss) < 1e-6
+        break
+    end
     prev_loss = curr_loss;
     mqb = M*Q+gamma*B_h;
     if d<k
-        A = (1+gamma)*(B.')*B; b = sum(B.*mqb); s=subspace_selection(A, b.',d);
+        %A = (1+gamma)*(B.')*B; 
+        %b = sum(B.*mqb); 
+        %s=subspace_selection(A, b.',d);
+        %s = random_selection(k, ratio);
+        s = select(sum(B.*mqb), ratio);
         mtb(:,s) = mtb(:,s) - Mt * B(:,s);
         B(:,s) = proj_hamming_balance(mqb(:,s));
         mtb(:,s) = mtb(:,s) + Mt * B(:,s);
@@ -50,4 +55,19 @@ function val = loss_mf(net, P, Q)
     val = val / 2;
 end
 
+function s = random_selection(k, ratio)
+s = false(k,1);
+ind = randsample(k,floor(k*ratio));
+s(ind)=true;
+end
+
+function s = select(b, ratio)
+k=length(b);
+d = floor(k*ratio);
+[~,ind]=sort(b);
+ind = ind(1:d);
+%ind = ind((end-d+1):end);
+s = false(k,1);
+s(ind) = true;
+end
 

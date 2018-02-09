@@ -3,8 +3,8 @@ function [B, Q] = dne_ao_itq(net, B, gamma)
 assert(m>=d);
 M = net;
 Mt = net.';
-max_iter = 500;
-prev_loss = inf;
+max_iter = 50;
+%prev_loss = inf;
 for iter=1:max_iter
     if m==d
         Q = proj_stiefel_manifold(Mt * B);
@@ -12,19 +12,19 @@ for iter=1:max_iter
         Q = proj_stiefel_manifold(M* (Mt * B));
     end
     B_ = sqrt(m) * proj_stiefel_manifold(B);
-    curr_loss = loss_mf(net, B, Q) + gamma / 2 * sum(sum((B - B_).^2));
-    fprintf('%d iteration, loss %.3f\n', iter-1, curr_loss);
-    if abs(prev_loss - curr_loss) < 1e-6
-        break
-    end
-    prev_loss = curr_loss;
+    %curr_loss = loss_mf(net, B, Q) + gamma / 2 * sum(sum((B - B_).^2));
+    %fprintf('%d iteration, loss %.3f\n', iter-1, curr_loss);
+    %if abs(prev_loss - curr_loss) < 1e-6
+    %    break
+    %end
+    %prev_loss = curr_loss;
     if m==d
         B = proj_hamming_balance(M * Q + gamma * B_);
     else
         B = proj_hamming_balance(M * (Mt* Q) + gamma * B_);
     end
 end
-fprintf('%d iteration, loss %.3f\n', iter, loss_mf(net, B, Q) + gamma / 2 * sum(sum((B - B_).^2)));
+%fprintf('%d iteration, loss %.3f\n', iter, loss_mf(net, B, Q) + gamma / 2 * sum(sum((B - B_).^2)));
 end
 
 function val = loss_mf(net, P, Q)
