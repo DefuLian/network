@@ -4,8 +4,10 @@ net = transform_network(network, 1, 1);
 tic
 [U, S] = svds(net, dim);
 B_svd = proj_hamming_balance(U * S);
-dne_ao_itq(net, B_svd, 0.);
+%dne_ao_itq(net, B_svd, 0.);
+dne_mf(net,B_svd,'ratio',0.2);
 time(1)=toc;
+return
 
 tic;
 SHparam.nbits = dim; % number of bits to code each sample

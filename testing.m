@@ -33,9 +33,51 @@ for g=1:num
     fclose(fileid);
     dlmwrite(file_name, [(0:n-1)', B_itq_svd], 'delimiter', ' ', '-append')
 end
-dlmwrite(sprintf('%s/timing2.txt', data_dir), timing);
+dlmwrite(sprintf('%s/timing3.txt', data_dir), timing);
 end
 
+%%
+for i=[2,3,1,4]
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+Ts = [10,10,1,1];
+data_dir_all = '/home/dlian/Data/data/network/';
+dataset = datasets{i};
+load(sprintf('%s/%s-dataset/data/node_rec/node_rec0/%s.mat', data_dir_all, dataset, dataset))
+network=train;
+T = Ts(i);
+dim = 128;
+
+if T==1
+    net = transform_network(network, T, 1);
+    [U, S] = svds(net, dim);
+    V = diag(1./diag(S)) * U.' * net;
+else
+    load(sprintf('%s/%s-dataset/data/node_rec/node_rec0/netmf.mat', data_dir_all, dataset))
+    S = embedding.'*embedding;
+    U = embedding*diag(1./sqrt(diag(S)));
+    V = diag(1./diag(S)) * U.' * net;
+end
+
+
+B_svd = proj_hamming_balance(U * S);
+num = 10;
+timing = zeros(num,1);
+result=cell(num,1);
+for g=1:num
+    tic;B_itq_svd = dne_mf(net, B_svd, 'ratio',g*0.1);timing(g)=toc;
+    P=B_itq_svd;
+    Q=B_itq_svd;
+    result{g} = evaluate_item(train, test, P, Q, -1, 200);
+end
+result = cell2mat(result);
+ndcg = cell2mat({result.ndcg}');
+ndcg = ndcg(:,50);
+auc = cell2mat({result.auc}');
+mpr = cell2mat({result.mpr}');
+
+final = [full([ndcg, auc, mpr]),timing];
+dlmwrite(sprintf('%s/%s-dataset/data/nr_ratio_2.txt', data_dir_all, dataset), final, 'precision','%.4f');
+end
 
 %% parameter sensivity for generating data
 rng(1000)
@@ -225,7 +267,7 @@ for dim=[16,32,64,128,256,512]
     time(i,:) = testing_time(network, dim);
     i=i+1;
 end
-dlmwrite(sprintf('%s/%s-dataset/data/timing_dim.txt', data_dir_all, dataset), time);
+dlmwrite(sprintf('%s/%s-dataset/data/timing_dim_subspace.txt', data_dir_all, dataset), time(:,1));
 
 clear
 data_dir_all = '/home/dlian/Data/data/network/';
@@ -238,7 +280,7 @@ for i=1:10
     eval(['network=', sprintf('train%d',i),';']);
     time(i,:) = testing_time(network, dim);
 end
-dlmwrite(sprintf('%s/%s-dataset/data/timing_ratio.txt', data_dir_all, dataset), time);
+dlmwrite(sprintf('%s/%s-dataset/data/timing_ratio_subspace.txt', data_dir_all, dataset), time(:,1));
 
 %%
 data_dir_all = '/home/dlian/Data/data/network/';
@@ -254,3 +296,89 @@ end
 result = result/10;
 dlmwrite(sprintf('%s/%s-dataset/data/node_rec/nr_result_%s.txt', data_dir_all, dataset, dataset),...
     result, 'precision','%.4f');    
+
+%% testing discrete collaborative filtering
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+Ts = [10,10,1,1];
+for i=[2,3,4];
+data_dir_all = '/home/dlian/Data/data/network/';
+dataset = datasets{i};
+load(sprintf('%s/%s-dataset/data/%s.mat', data_dir_all, dataset, dataset))
+dim = 128;
+n = length(network);
+option.Init = true;
+alpha =0.01;
+beta = 0.01;
+option.debug = true;
+option.maxItr = 50;
+S = network;
+ST = S';
+IDX = (S~=0);
+IDXT = IDX';
+
+[B,D]=DCF(1, 1, S, ST, IDX, IDXT, dim, alpha, beta, option);
+
+data_dir = sprintf('%s/%s-dataset/data/baseline', data_dir_all, dataset);
+
+file_name = sprintf('%s/embedding_%s.txt', data_dir, 'dcf');
+fileid = fopen(file_name, 'w');
+fprintf(fileid, '%d %d\n', n, dim);
+fclose(fileid);
+dlmwrite(file_name, [(0:n-1)', B.'], 'delimiter', ' ', '-append')
+end
+%% testing sgh for classification
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+Ts = [10,10,1,1];
+for i=[2,3,4];
+data_dir_all = '/home/dlian/Data/data/network/';
+dataset = datasets{i};
+load(sprintf('%s/%s-dataset/data/%s.mat', data_dir_all, dataset, dataset))
+dim = 128;
+n = length(network);
+m = n/2;
+sample = randperm(n);
+bases = network(sample(1:m),:);
+[Wx,KXTrain,para] = trainSGH(network,bases, dim);
+B = (KXTrain*Wx > 0) * 2 -1;
+
+data_dir = sprintf('%s/%s-dataset/data/baseline', data_dir_all, dataset);
+
+file_name = sprintf('%s/embedding_%s.txt', data_dir, 'sgh');
+fileid = fopen(file_name, 'w');
+fprintf(fileid, '%d %d\n', n, dim);
+fclose(fileid);
+dlmwrite(file_name, [(0:n-1)', B], 'delimiter', ' ', '-append')
+end
+
+%%
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+result=cell(4,1);
+data_dir_all = '/home/dlian/Data/data/network/';
+for i=[1,2,3,4];
+dataset = datasets{i};
+load(sprintf('%s/%s-dataset/data/node_rec/node_rec0/%s.mat', data_dir_all, dataset, dataset))
+dim = 128;
+option.Init = true;
+alpha =0.01;
+beta = 0.01;
+option.debug = true;
+option.maxItr = 50;
+S = train;
+ST = S';
+IDX = (S~=0);
+IDXT = IDX';
+[B,D]=DCF(1, 1, S, ST, IDX, IDXT, dim, alpha, beta, option);
+result{i} = evaluate_item(train, test, B.', D.', -1, 200);
+end
+
+result = cell2mat(result);
+ndcg = cell2mat({result.ndcg}');
+ndcg = ndcg(:,50);
+auc = cell2mat({result.auc}');
+mpr = cell2mat({result.mpr}');
+final = full([ndcg, auc, mpr]);
+
+dlmwrite(sprintf('%s/nr_dcf_0.txt', data_dir_all), final,'precision','%.4f');
+
+
+

@@ -1,12 +1,12 @@
 %%
 data_dir_all = '/home/dlian/Data/data/network/';
 dataset = 'Wiki';
-file_name = sprintf('%s/%s-dataset/data/mc_ratio/mc_ratio.txt', data_dir_all, dataset);
+file_name = sprintf('%s/%s-dataset/data/mc_ratio/mc_ratio_fixiter.txt', data_dir_all, dataset);
 micro = dlmread(file_name, '\t', [1,0,10,4]);
 micro = micro([2:end,1],:);
 macro = dlmread(file_name, '\t', [12,0,21,4]);
 macro = macro([2:end,1],:);
-time = dlmread(sprintf('%s/%s-dataset/data/mc_ratio/timing2.txt', data_dir_all, dataset));
+time = dlmread(sprintf('%s/%s-dataset/data/mc_ratio/timing3.txt', data_dir_all, dataset));
 time = time(10)./time(1:10);
 if strcmp(dataset, 'Wiki')
 [time,ind]=sort(time);
@@ -58,9 +58,9 @@ data_dir_all = '/home/dlian/Data/data/network/';
 datasets={'BlogCatalog','PPI','Wiki','Flickr'};
 for i=1:4
 dataset = datasets{i};
-time = dlmread(sprintf('%s/%s-dataset/data/mc_ratio/timing2.txt', data_dir_all, dataset));
+time = dlmread(sprintf('%s/%s-dataset/data/mc_ratio/timing3.txt', data_dir_all, dataset));
 times{i} = time(10)./time(1:10);
-file_name = sprintf('%s/%s-dataset/data/nr_ratio.txt', data_dir_all, dataset);
+file_name = sprintf('%s/%s-dataset/data/nr_ratio_2.txt', data_dir_all, dataset);
 datas{i} = dlmread(file_name);
 end
 figure('visible','off')
@@ -69,7 +69,7 @@ for i= 1:4
     plot(times{i}, datas{i}(:,1), m{i}, 'linewidth',2); hold on;
 end
 legend(datasets{:}, 'location','southeast');
-xlim([1,1.9])
+%xlim([1,1.9])
 ylim([0.035,0.16])
 set(gca, 'ytick', 0.04:0.03:0.16);
 ylabel('NDCG@50'); xlabel('speedup of training');
@@ -84,7 +84,7 @@ for i= 1:4
     plot(times{i}, datas{i}(:,2), m{i}, 'linewidth',2); hold on;
 end
 legend(datasets{:},'location','northeast');
-xlim([1,1.9])
+%xlim([1,1.9])
 ylim([0.6,0.9]);
 set(gca, 'ytick', 0.6:0.1:0.9);
 ylabel('AUC'); xlabel('speedup of training');
@@ -99,7 +99,7 @@ for i= 1:4
     plot(times{i}, datas{i}(:,3), m{i}, 'linewidth',2); hold on;
 end
 legend(datasets{:},'location','southeast');
-xlim([1,1.9])
+%xlim([1,1.9])
 ylim([0.1,0.4]);
 set(gca, 'ytick', 0.1:0.1:0.4);
 ylabel('MPR'); xlabel('speedup of training');
@@ -269,24 +269,28 @@ m = {'-o','--+',':x','-.','-^'};
 data_dir = '~/Data/data/network/Flickr-dataset/data';
 figure('visible','off')
 time_dim = dlmread('~/Data/data/network/Flickr-dataset/data/timing_dim.txt',',');
+time_dim_ss = dlmread('~/Data/data/network/Flickr-dataset/data/timing_dim_subspace.txt',',');
+semilogx(2.^(4:9),time_dim_ss,m{5},'linewidth',2); hold on
 for i=1:4
 semilogx(2.^(4:9),time_dim(:,i),m{i},'linewidth',2);hold on
 end
 set(gca, 'xtick',2.^(4:9))
 ApplyFigTemplate(gcf, gca);
 xlabel('dimension of representation space');
-legend('INH-MF','SH','ITQ','AGH-1','location','northwest');
+legend('INH-MF(20%)','INH-MF(100%)','SH','ITQ','AGH-1','location','northwest');
 ylabel('training time (second)')
 print(sprintf('%s/time_dim.pdf', data_dir),'-dpdf');
 close(gcf);
 
 figure('visible','off')
 time_ratio = dlmread('~/Data/data/network/Flickr-dataset/data/timing_ratio.txt',',');
+time_ratio_ss = dlmread('~/Data/data/network/Flickr-dataset/data/timing_ratio_subspace.txt',',');
+plot(1:10,time_ratio_ss,m{5},'linewidth',2);hold on
 for i=1:4
 plot(1:10,time_ratio(:,i),m{i},'linewidth',2);hold on
 end
 ApplyFigTemplate(gcf, gca);
-legend('INH-MF','SH','ITQ','AGH-1','location','northwest');
+legend('INH-MF(20%)','INH-MF(100%)','SH','ITQ','AGH-1','location','northwest');
 set(gca,'xtick',2:2:10);
 set(gca,'xticklabel',{'20%','40%','60%','80%','100%'});
 xlabel('percentage of training data');
