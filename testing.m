@@ -2,7 +2,7 @@ for i=[2,3,1,4]
 datasets={'BlogCatalog','PPI','Wiki','Flickr'};
 Ts = [10,10,1,1];
 %i=2;
-data_dir_all = '/home/dlian/Data/data/network/';
+data_dir_all = '/home/dlian/data/network/';
 dataset = datasets{i};
 load(sprintf('%s/%s-dataset/data/%s.mat', data_dir_all, dataset, dataset))
 T = Ts(i);

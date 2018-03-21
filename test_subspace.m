@@ -30,3 +30,44 @@ ll3 = ll_3(ll_3>0);
 ll4=loss(3,:);
 ll4=ll4(ll4>0);
 plot(ll1);hold on; plot(ll2);hold on; plot(ll3);hold on; plot(ll4)
+
+%%
+
+
+%plot(loss_rand(loss_rand>0)); hold on
+%plot(loss_init(loss_init>0));
+
+loss_rand = zeros(500,4);
+loss_init = zeros(500,4);
+for i=[2,3,1,4]
+datasets={'BlogCatalog','PPI','Wiki','Flickr'};
+Ts = [10,10,1,1];
+%i=2;
+data_dir_all = '/home/dlian/data/network/';
+dataset = datasets{i};
+load(sprintf('%s/%s-dataset/data/%s.mat', data_dir_all, dataset, dataset))
+T = Ts(i);
+dim = 128;
+n = length(network);
+
+if T==1
+    net = transform_network(network, T, 1);
+    [U, S] = svds(net, dim);
+    V = diag(1./diag(S)) * U.' * net;
+else
+    load(sprintf('%s/%s-dataset/data/netmf.mat', data_dir_all, dataset))
+    S = embedding.'*embedding;
+    U = embedding*diag(1./sqrt(diag(S)));
+    V = diag(1./diag(S)) * U.' * net;
+end
+
+B_svd = sign(randn(n,dim));
+[~,~,loss_rand(:,i)] = dne_ao_itq_subspace(net, B_svd);
+B_svd = proj_hamming_balance(U * S);
+[~,~,loss_init(:,i)] = dne_ao_itq_subspace(net, B_svd);
+end
+save('/home/dlian/data/network/loss_rand_init.mat', 'loss_rand', 'loss_init')
+%%
+i=4;
+plot(loss_rand(loss_rand(:,i)>0,i)); hold on;
+plot(loss_init(loss_init(:,i)>0,i)); 
